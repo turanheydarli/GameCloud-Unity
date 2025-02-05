@@ -1,0 +1,27 @@
+{
+  "name": "com.gamecloud.client",
+  "version": "1.0.0",
+  "displayName": "Game Cloud Client",
+  "description": "Game Cloud multiplayer game backend client for Unity",
+  "unity": "2020.3",
+  "keywords": [
+    "gamecloud",
+    "multiplayer",
+    "networking",
+    "backend"
+  ],
+  "author": {
+    "name": "Turan Heydarli",
+    "email": "turan.heydarli@yandex.com",
+    "url": "https://playables.studio"
+  },
+  "dependencies": {
+  },
+  "samples": [
+    {
+      "displayName": "Basic Example",
+      "description": "Contains basic example of GameCloud implementation",
+      "path": "Samples~/BasicExample"
+    }
+  ]
+} 
