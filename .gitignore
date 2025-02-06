@@ -25,7 +25,13 @@
 
 # Visual Studio cache directory
 .vs/
+.idea/
+*.DotSettings.user
+*.sln.DotSettings.user
 
+# Visual Studio Code
+.vscode/
+*.code-workspace
 # Gradle cache directory
 .gradle/
 
