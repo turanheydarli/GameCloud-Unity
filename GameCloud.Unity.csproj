@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <AssemblyName>GameCloud.Unity</AssemblyName>
+        <RootNamespace>GameCloud.Unity</RootNamespace>
+        <LangVersion>9.0</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Include="UnityEngine">
+            <HintPath>$(UnityEditorPath)/Data/Managed/UnityEngine.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>$(UnityEditorPath)/Data/Managed/UnityEngine.CoreModule.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="UnityEditor">
+            <HintPath>$(UnityEditorPath)/Data/Managed/UnityEditor.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
+
+    <PropertyGroup>
+        <UnityEditorPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">C:\Program Files\Unity\Hub\Editor\2021.3.25f1\Editor</UnityEditorPath>
+        <UnityEditorPath Condition="$([MSBuild]::IsOSPlatform('OSX'))">/Applications/Unity/Hub/Editor/2022.3.16f1/Unity.app/Contents</UnityEditorPath>
+    </PropertyGroup>
+</Project>
