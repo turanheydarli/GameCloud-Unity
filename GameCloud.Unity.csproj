@@ -6,23 +6,25 @@
         <LangVersion>9.0</LangVersion>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <UnityEditorPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">C:\Program Files\Unity\Hub\Editor\2021.3.25f1\Editor\Data</UnityEditorPath>
+        <UnityEditorPath Condition="$([MSBuild]::IsOSPlatform('OSX'))">/Applications/Unity/Hub/Editor/2022.3.51f1/Unity.app/Contents</UnityEditorPath>
+        <ManagedPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(UnityEditorPath)\Managed</ManagedPath>
+        <ManagedPath Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(UnityEditorPath)/Managed</ManagedPath>
+    </PropertyGroup>
+
     <ItemGroup>
         <Reference Include="UnityEngine">
-            <HintPath>$(UnityEditorPath)/Data/Managed/UnityEngine.dll</HintPath>
+            <HintPath>$(ManagedPath)/UnityEngine.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="UnityEngine.CoreModule">
-            <HintPath>$(UnityEditorPath)/Data/Managed/UnityEngine.CoreModule.dll</HintPath>
+            <HintPath>$(ManagedPath)/UnityEngine.CoreModule.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <Reference Include="UnityEditor">
-            <HintPath>$(UnityEditorPath)/Data/Managed/UnityEditor.dll</HintPath>
+            <HintPath>$(ManagedPath)/UnityEditor.dll</HintPath>
             <Private>false</Private>
         </Reference>
     </ItemGroup>
-
-    <PropertyGroup>
-        <UnityEditorPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">C:\Program Files\Unity\Hub\Editor\2021.3.25f1\Editor</UnityEditorPath>
-        <UnityEditorPath Condition="$([MSBuild]::IsOSPlatform('OSX'))">/Applications/Unity/Hub/Editor/2022.3.16f1/Unity.app/Contents</UnityEditorPath>
-    </PropertyGroup>
 </Project>
