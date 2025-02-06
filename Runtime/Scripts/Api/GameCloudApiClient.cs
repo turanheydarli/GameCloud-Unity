@@ -11,9 +11,9 @@ namespace GameCloud.Api
         private readonly string gameKey;
         private string authToken;
 
-        public GameCloudApiClient(string baseUrl, string gameKey)
+        public GameCloudApiClient(string host, int port, string gameKey, bool ssl)
         {
-            this.baseUrl = baseUrl;
+            this.baseUrl = $"{(ssl ? "https" : "http")}://{host}:{port}/api/v1";
             this.gameKey = gameKey;
         }
 
