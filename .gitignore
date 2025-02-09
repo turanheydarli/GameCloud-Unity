@@ -28,6 +28,7 @@
 .idea/
 *.DotSettings.user
 *.sln.DotSettings.user
+*.meta
 
 # Visual Studio Code
 .vscode/
