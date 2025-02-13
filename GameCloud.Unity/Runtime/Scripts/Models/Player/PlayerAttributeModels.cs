@@ -18,14 +18,14 @@ namespace GameCloud.Models
     [Serializable]
     public class AttributeCollection
     {
-        public Dictionary<string, PlayerAttribute> attributeKey;
+        public Dictionary<string, PlayerAttribute> collections;
     }
 
     [Serializable]
     public class AttributeWriteRequest
     {
         public string key;
-        public string value;
+        public object value;
         public string expectedVersion;
         public int? expiresIn;
         public Dictionary<string, object> permissionRead;

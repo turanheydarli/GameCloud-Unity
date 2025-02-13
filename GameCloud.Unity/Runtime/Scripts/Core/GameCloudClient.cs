@@ -23,22 +23,29 @@ namespace GameCloud
         public int Port { get; private set; }
         public bool SSL { get; private set; }
 
-        private GameCloudClient(string host, int port, string gameKey, bool ssl)
+        private GameCloudClient(string host, int port, string gameKey, bool ssl, bool useLogger)
         {
             Host = host;
             Port = port;
             SSL = ssl;
-            apiClient = new GameCloudApiClient(host, port, gameKey, ssl);
+            apiClient = new GameCloudApiClient(host, port, gameKey, ssl, useLogger);
+        }
+
+        public static GameCloudClient FromSettings(GameCloudSettings settings)
+        {
+            return new GameCloudClient(settings.Host, settings.Port, settings.GameKey, settings.UseSSL,
+                settings.EnableDebugLogs);
         }
 
         public static GameCloudClient Default(string gameKey)
         {
-            return new GameCloudClient(DefaultHost, DefaultPort, gameKey, true);
+            return new GameCloudClient(DefaultHost, DefaultPort, gameKey, true, false);
         }
 
-        public static GameCloudClient Create(string host, int port, string gameKey, bool ssl = true)
+        public static GameCloudClient Create(string host, int port, string gameKey, bool ssl = true,
+            bool useLogger = false)
         {
-            return new GameCloudClient(host, port, gameKey, ssl);
+            return new GameCloudClient(host, port, gameKey, ssl, useLogger);
         }
 
         public void SetSession(IGameCloudSession session)
@@ -255,6 +262,13 @@ namespace GameCloud
             return await apiClient.GetAsync<Match>($"/matchmaking/matches/{matchId}");
         }
 
+        public void GetMatchmakingTicket(string ticketId, Action<MatchmakingTicket> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.GetMatchmakingTicket(ticketId, onSuccess, error => onError?.Invoke(error));
+        }
+
         public async UniTask<IGameCloudSession> AuthenticateWithDeviceAsync(string deviceId,
             Dictionary<string, object> metadata = null)
         {
@@ -318,6 +332,107 @@ namespace GameCloud
         {
             RequireSession();
             return await apiClient.GetAsync<MatchState>($"/matchmaking/matches/{matchId}/state");
+        }
+#endif
+
+        public void GetPlayer(string playerId, Action<PlayerResponse> onSuccess, Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.GetPlayer(playerId, onSuccess, error => onError?.Invoke(error));
+        }
+
+        public void GetPlayerByUsername(string username, Action<PlayerResponse> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.GetPlayerByUsername(username, onSuccess, error => onError?.Invoke(error));
+        }
+
+        public void GetPlayerByCustomId(string customId, Action<PlayerResponse> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.GetPlayerByCustomId(customId, onSuccess, error => onError?.Invoke(error));
+        }
+
+        public void GetPlayerByDeviceId(string deviceId, Action<PlayerResponse> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.GetPlayerByDeviceId(deviceId, onSuccess, error => onError?.Invoke(error));
+        }
+
+        public void UpdatePlayerMetadata(string playerId, Dictionary<string, object> metadata,
+            Action<PlayerResponse> onSuccess, Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.UpdatePlayerMetadata(playerId, metadata, onSuccess, error => onError?.Invoke(error));
+        }
+
+        public void UpdatePlayerStatus(string playerId, PlayerStatus status, Action<PlayerResponse> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.UpdatePlayerStatus(playerId, status, onSuccess, error => onError?.Invoke(error));
+        }
+
+#if UNITASK_SUPPORT
+        public async UniTask<PlayerResponse> GetPlayerAsync(string playerId)
+        {
+            RequireSession();
+            return await apiClient.GetAsync<PlayerResponse>($"/players/{playerId}");
+        }
+
+        public async UniTask<PlayerResponse> GetPlayerByUsernameAsync(string username)
+        {
+            RequireSession();
+            return await apiClient.GetAsync<PlayerResponse>($"/players/username/{username}");
+        }
+
+        public async UniTask<PlayerResponse> GetPlayerByCustomIdAsync(string customId)
+        {
+            RequireSession();
+            return await apiClient.GetAsync<PlayerResponse>($"/players/custom/{customId}");
+        }
+
+        public async UniTask<PlayerResponse> GetPlayerByDeviceIdAsync(string deviceId)
+        {
+            RequireSession();
+            return await apiClient.GetAsync<PlayerResponse>($"/players/device/{deviceId}");
+        }
+
+        public async UniTask<PlayerResponse> UpdatePlayerMetadataAsync(string playerId,
+            Dictionary<string, object> metadata)
+        {
+            RequireSession();
+            return await apiClient.PutAsync<PlayerResponse>($"/players/{playerId}/metadata", metadata);
+        }
+
+        public async UniTask<PlayerResponse> UpdatePlayerStatusAsync(string playerId, PlayerStatus status)
+        {
+            RequireSession();
+            return await apiClient.PutAsync<PlayerResponse>($"/players/{playerId}/status",
+                new { status = status.ToString().ToLower() });
+        }
+#endif
+        public void ProcessMatchmaking(string queueId, Action<List<Match>> onSuccess, Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.ProcessMatchmaking(queueId, onSuccess, error => onError?.Invoke(error));
+        }
+
+#if UNITASK_SUPPORT
+        public async UniTask<MatchmakingTicket> GetMatchmakingTicketAsync(string ticketId)
+        {
+            RequireSession();
+            return await apiClient.GetAsync<MatchmakingTicket>($"/matchmaking/tickets/{ticketId}");
+        }
+
+        public async UniTask<List<Match>> ProcessMatchmakingAsync(string queueId = null)
+        {
+            RequireSession();
+            var endpoint = queueId != null ? $"/matchmaking/process?queueId={queueId}" : "/matchmaking/process";
+            return await apiClient.PostAsync<List<Match>>(endpoint, null);
         }
 #endif
     }

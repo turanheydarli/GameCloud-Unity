@@ -13,11 +13,15 @@ namespace GameCloud.Api
         private readonly string baseUrl;
         private readonly string gameKey;
         private string authToken;
-
-        public GameCloudApiClient(string host, int port, string gameKey, bool ssl)
+        private readonly bool useLogger;
+        private readonly ILogger logger;
+    
+        public GameCloudApiClient(string host, int port, string gameKey, bool ssl, bool useLogger = false, ILogger logger = null)
         {
             this.baseUrl = $"{(ssl ? "https" : "http")}://{host}:{port}";
             this.gameKey = gameKey;
+            this.useLogger = useLogger;
+            this.logger = logger;
         }
 
         public void SetAuthToken(string token)
@@ -27,14 +31,20 @@ namespace GameCloud.Api
 
         protected internal IEnumerator Get<T>(string endpoint, Action<T> onSuccess, Action<ProblemDetails> onError)
         {
+            LogRequest("GET", endpoint);
+            
             using UnityWebRequest www = UnityWebRequest.Get($"{baseUrl}/api/v1{endpoint}");
             SetupHeaders(www);
             yield return www.SendWebRequest();
+            
+            LogResponse("GET", endpoint, www.downloadHandler.text, www.result != UnityWebRequest.Result.Success);
             HandleResponse(www, onSuccess, onError);
         }
 
         protected internal IEnumerator Post<T>(string endpoint, object data, Action<T> onSuccess, Action<ProblemDetails> onError)
         {
+            LogRequest("POST", endpoint, data);
+            
             using UnityWebRequest www = new UnityWebRequest($"{baseUrl}/api/v1{endpoint}", "POST");
             www.downloadHandler = new DownloadHandlerBuffer();
             
@@ -47,6 +57,8 @@ namespace GameCloud.Api
 
             SetupHeaders(www);
             yield return www.SendWebRequest();
+            
+            LogResponse("POST", endpoint, www.downloadHandler.text, www.result != UnityWebRequest.Result.Success);
             HandleResponse(www, onSuccess, onError);
         }
 
@@ -82,8 +94,7 @@ namespace GameCloud.Api
                 {
                     onError?.Invoke(ProblemDetails.FromError(www.error));
                 }
-
-                Debug.Log("[WWW Response] Error: " + www.downloadHandler.text);
+                
                 return;
             }
 
@@ -136,10 +147,7 @@ namespace GameCloud.Api
             if (!string.IsNullOrEmpty(authToken))
             {
                 www.SetRequestHeader("Authorization", $"Bearer {authToken}");
-                
-                Debug.Log("Authorization: " + $"Bearer {authToken}");
             }
         }
-
     }
 }

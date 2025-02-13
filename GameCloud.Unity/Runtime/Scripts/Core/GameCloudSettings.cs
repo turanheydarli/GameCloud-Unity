@@ -22,6 +22,7 @@ namespace GameCloud
 
         [Header("Advanced Settings")] public bool EnableDebugLogs = true;
         public int RequestTimeout = 30;
+        public bool ShowDetailedLogs = false;
 
         public static GameCloudSettings Load()
         {
