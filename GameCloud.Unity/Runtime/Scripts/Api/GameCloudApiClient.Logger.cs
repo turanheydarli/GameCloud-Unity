@@ -14,18 +14,24 @@ namespace GameCloud.Api
         {
             if (!useLogger) return;
             
-            var logMessage = FormatRequestLog(method, endpoint, data);
+            var logMessage = new StringBuilder();
+            logMessage.AppendLine($"[GameCloud] {method} Request: {baseUrl}/api/v1{endpoint}");
             
-            if (logger != null)
-                logger.Log(LogType.Log, logMessage);
-            else
+            logMessage.AppendLine("Headers:");
+            logMessage.AppendLine("  Content-Type: application/json");
+            logMessage.AppendLine($"  X-Game-Key: {gameKey}");
+            if (!string.IsNullOrEmpty(authToken))
             {
-                #if UNITY_EDITOR
-                Debug.Log($"<click>{logMessage}</click>");
-                #else
-                Debug.Log(logMessage);
-                #endif
+                logMessage.AppendLine($"  Authorization: Bearer {authToken}");
             }
+            
+            if (data != null)
+            {
+                logMessage.AppendLine("Body:");
+                logMessage.AppendLine(JsonConvert.SerializeObject(data, Formatting.Indented));
+            }
+            
+            Debug.Log($"<click>{logMessage}</click>");
         }
 
         private void LogResponse(string method, string endpoint, string response, bool isError = false)
