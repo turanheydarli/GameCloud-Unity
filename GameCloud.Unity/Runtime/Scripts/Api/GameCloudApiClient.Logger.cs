@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using GameCloud.Models;
 using Newtonsoft.Json;
@@ -10,51 +11,86 @@ namespace GameCloud.Api
 {
     public partial class GameCloudApiClient
     {
-        private void LogRequest(string method, string endpoint, object data = null)
+        private void LogRequest(string method, string endpoint, object data = null,
+            Dictionary<string, string> headers = null)
         {
             if (!useLogger) return;
-            
-            var logMessage = new StringBuilder();
-            logMessage.AppendLine($"[GameCloud] {method} Request: {baseUrl}/api/v1{endpoint}");
-            
-            logMessage.AppendLine("Headers:");
-            logMessage.AppendLine("  Content-Type: application/json");
-            logMessage.AppendLine($"  X-Game-Key: {gameKey}");
-            if (!string.IsNullOrEmpty(authToken))
+        
+            var headerStr = new StringBuilder();
+            if (headers != null)
             {
-                logMessage.AppendLine($"  Authorization: Bearer {authToken}");
+                headerStr.AppendLine("Headers:");
+                foreach (var header in headers)
+                {
+                    headerStr.AppendLine($"  {header.Key}: {header.Value}");
+                }
             }
-            
-            if (data != null)
+        
+            var bodyStr = data != null ? JsonConvert.SerializeObject(data, Formatting.Indented) : "";
+        
+            var logEvent = new GameCloudLogEvent
             {
-                logMessage.AppendLine("Body:");
-                logMessage.AppendLine(JsonConvert.SerializeObject(data, Formatting.Indented));
-            }
-            
-            Debug.Log($"<click>{logMessage}</click>");
+                Method = method,
+                Endpoint = endpoint,
+                Message = $"[GameCloud] {method} Request: {baseUrl}/api/v1{endpoint}",
+                Headers = headerStr.ToString(),
+                Body = bodyStr,
+                IsRequest = true
+            };
+        
+            GameCloudLogEvent.Emit(logEvent);
+            Debug.Log(logEvent.Message);
         }
-
-        private void LogResponse(string method, string endpoint, string response, bool isError = false)
+        
+        private void LogResponse(string method, string endpoint, string response, Dictionary<string, string> headers,
+            bool isError = false)
         {
             if (!useLogger) return;
-    
-            var logMessage = FormatResponseLog(method, endpoint, response);
-            
+        
+            var headerStr = new StringBuilder();
+            if (headers != null)
+            {
+                headerStr.AppendLine("Headers:");
+                foreach (var header in headers)
+                {
+                    headerStr.AppendLine($"  {header.Key}: {header.Value}");
+                }
+            }
+        
+            string formattedBody;
+            try
+            {
+                var obj = JsonConvert.DeserializeObject(response);
+                formattedBody = JsonConvert.SerializeObject(obj, Formatting.Indented);
+            }
+            catch
+            {
+                formattedBody = response;
+            }
+        
+            var logEvent = new GameCloudLogEvent
+            {
+                Method = method,
+                Endpoint = endpoint,
+                Message = $"[GameCloud] {method} Response: {baseUrl}/api/v1{endpoint}",
+                Headers = headerStr.ToString(),
+                Body = formattedBody,
+                IsRequest = false,
+                IsError = isError
+            };
+        
+            GameCloudLogEvent.Emit(logEvent);
+        
             if (logger != null)
-                logger.Log(isError ? LogType.Error : LogType.Log, logMessage);
+                logger.Log(isError ? LogType.Error : LogType.Log, logEvent.Message);
             else
             {
-                #if UNITY_EDITOR
+        #if UNITY_EDITOR
                 if (isError)
-                    Debug.LogError($"<click>{logMessage}</click>");
+                    Debug.LogError(logEvent.Message);
                 else
-                    Debug.Log($"<click>{logMessage}</click>");
-                #else
-                if (isError)
-                    Debug.LogError(logMessage);
-                else
-                    Debug.Log(logMessage);
-                #endif
+                    Debug.Log(logEvent.Message);
+        #endif
             }
         }
 
@@ -63,13 +99,13 @@ namespace GameCloud.Api
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"<b>[GameCloud] {method} Request</b>");
             sb.AppendLine($"<color=#80FF80>URL:</color> {baseUrl}/api/v1{endpoint}");
-            
+
             if (data != null)
             {
                 sb.AppendLine("<color=#80FF80>Body:</color>");
                 sb.AppendLine(JsonConvert.SerializeObject(data, Formatting.Indented));
             }
-            
+
             return sb.ToString();
         }
 
@@ -78,7 +114,7 @@ namespace GameCloud.Api
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"<b>[GameCloud] {method} Response</b>");
             sb.AppendLine($"<color=#80FF80>URL:</color> {baseUrl}/api/v1{endpoint}");
-            
+
             try
             {
                 // Try to parse and format JSON response
@@ -92,7 +128,7 @@ namespace GameCloud.Api
                 sb.AppendLine("<color=#80FF80>Response:</color>");
                 sb.AppendLine(response);
             }
-            
+
             return sb.ToString();
         }
     }

@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using GameCloud.Api;
 
 namespace GameCloud.Editor
 {
@@ -13,6 +14,10 @@ namespace GameCloud.Editor
         private bool showResponses = true;
         private string searchFilter = "";
         private GUIStyle logStyle;
+        private GUIStyle headerBoxStyle;
+        private GUIStyle typeStyle;
+        private GUIStyle methodStyle;
+        private GUIStyle foldoutStyle;
 
         private Dictionary<int, bool> headerFoldouts = new Dictionary<int, bool>();
 
@@ -24,45 +29,67 @@ namespace GameCloud.Editor
             public bool IsRequest;
             public string Headers;
             public string Body;
+            public string Endpoint;
+            public string Method;
         }
-
+        
         private void DrawLogEntry(LogEntry log, int index)
         {
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.BeginVertical(headerBoxStyle);
 
-            // Header row with timestamp and type
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField($"[{log.Timestamp}]", GUILayout.Width(70));
-            EditorGUILayout.LabelField(log.IsRequest ? "REQUEST" : "RESPONSE",
-                EditorStyles.boldLabel, GUILayout.Width(80));
-            EditorGUILayout.EndHorizontal();
+            // Header row
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                // Timestamp
+                EditorGUILayout.LabelField($"[{log.Timestamp}]", GUILayout.Width(70));
+                
+                // Request/Response label
+                var color = GUI.color;
+                GUI.color = log.Type == LogType.Error ? Color.red : Color.white;
+                EditorGUILayout.LabelField(log.IsRequest ? "REQUEST" : "RESPONSE", typeStyle, GUILayout.Width(80));
+                GUI.color = color;
 
-            // Headers foldout
+                // Method and endpoint
+                EditorGUILayout.LabelField($"{log.Method} {log.Endpoint}", methodStyle);
+            }
+
+            EditorGUILayout.Space(5);
+
+            // Headers section
             if (!string.IsNullOrEmpty(log.Headers))
             {
                 if (!headerFoldouts.ContainsKey(index))
                     headerFoldouts[index] = false;
 
-                var style = new GUIStyle(EditorStyles.foldout);
-                style.normal.textColor = new Color(0.5f, 0.7f, 1f);
-                headerFoldouts[index] = EditorGUILayout.Foldout(headerFoldouts[index], "Headers", true, style);
-                
-                if (headerFoldouts[index])
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
                 {
-                    EditorGUI.indentLevel++;
-                    EditorGUILayout.LabelField(log.Headers, logStyle);
-                    EditorGUI.indentLevel--;
+                    headerFoldouts[index] = EditorGUILayout.Foldout(headerFoldouts[index], "Headers", true, foldoutStyle);
+                    if (headerFoldouts[index])
+                    {
+                        EditorGUI.indentLevel++;
+                        var content = new GUIContent(log.Headers);
+                        var height = logStyle.CalcHeight(content, EditorGUIUtility.currentViewWidth - 60);
+                        EditorGUILayout.LabelField(content, logStyle, GUILayout.Height(height));
+                        EditorGUI.indentLevel--;
+                    }
+                }
+                
+                EditorGUILayout.Space(5);
+            }
+
+            // Body section
+            if (!string.IsNullOrEmpty(log.Body))
+            {
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                {
+                    var content = new GUIContent(log.Body);
+                    var height = logStyle.CalcHeight(content, EditorGUIUtility.currentViewWidth - 40);
+                    EditorGUILayout.LabelField(content, logStyle, GUILayout.Height(height));
                 }
             }
 
-            // Main content
-            if (!string.IsNullOrEmpty(log.Body))
-            {
-                EditorGUILayout.LabelField(log.Body, logStyle);
-            }
-
             EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(2);
+            EditorGUILayout.Space(5);
         }
 
         public static GameCloudLogWindow ShowWindow()
@@ -74,32 +101,102 @@ namespace GameCloud.Editor
 
         private void OnEnable()
         {
+            GameCloudLogEvent.OnLog += OnGameCloudLog;
+            InitializeStyles();
+        }
+
+        private void InitializeStyles()
+        {
             logStyle = new GUIStyle(EditorStyles.label)
             {
                 richText = true,
-                wordWrap = true
+                wordWrap = true,
+                fontSize = 12,
+                padding = new RectOffset(10, 10, 5, 5),
+                normal = { textColor = new Color(0.9f, 0.9f, 0.9f) }
+            };
+
+            headerBoxStyle = new GUIStyle(EditorStyles.helpBox)
+            {
+                padding = new RectOffset(15, 15, 10, 10),
+                margin = new RectOffset(0, 0, 5, 5),
+                fontSize = 12
+            };
+
+            typeStyle = new GUIStyle(EditorStyles.boldLabel)
+            {
+                fontSize = 12,
+                alignment = TextAnchor.MiddleLeft,
+                fixedHeight = 20
+            };
+
+            methodStyle = new GUIStyle(EditorStyles.label)
+            {
+                fontSize = 12,
+                normal = { textColor = new Color(0.4f, 0.8f, 1f) },
+                fontStyle = FontStyle.Bold
+            };
+
+            foldoutStyle = new GUIStyle(EditorStyles.foldout)
+            {
+                normal = { textColor = new Color(0.7f, 0.9f, 1f) },
+                fontStyle = FontStyle.Bold,
+                fontSize = 11,
+                padding = new RectOffset(15, 0, 0, 0)
             };
         }
 
-        public static void AddLog(string message, string headers, string body, bool isRequest, LogType type = LogType.Log)
+        private void OnDisable()
         {
-            var window = GetWindow<GameCloudLogWindow>();
-            window.logs.Add(new LogEntry
+            GameCloudLogEvent.OnLog -= OnGameCloudLog;
+        }
+
+        private void OnGameCloudLog(GameCloudLogEvent logEvent)
+        {
+            AddLogEntry(logEvent.Message, logEvent.Headers, logEvent.Body, logEvent.IsRequest, logEvent.Endpoint,
+                logEvent.Method, logEvent.IsError ? LogType.Error : LogType.Log);
+        }
+
+        private void AddLogEntry(string message, string headers, string body, bool isRequest, string endpoint,
+            string method, LogType type = LogType.Log)
+        {
+            logs.Add(new LogEntry
             {
                 Message = message,
                 Headers = headers,
                 Body = body,
                 Type = type,
                 Timestamp = System.DateTime.Now.ToString("HH:mm:ss"),
-                IsRequest = isRequest
+                IsRequest = isRequest,
+                Endpoint = endpoint,
+                Method = method
             });
+            
+            Repaint();
         }
+
+        // Remove AddLog and AddLogFromConsole methods
+
+        public void AddLogFromConsole(string message, bool isRequest, string endpoint, string method,
+            string headers, string body, LogType type)
+        {
+            AddLogEntry(message, headers, body, isRequest, endpoint, method, type);
+        }
+
+        // Remove ExtractHeaders and RemoveHeaders methods as they're no longer needed
 
         private void OnGUI()
         {
+                  
+            if (logStyle == null)
+            {
+                InitializeStyles();
+            }
+            
             DrawToolbar();
             DrawSearchBar();
             DrawLogs();
+      
         }
 
         private void DrawToolbar()

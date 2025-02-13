@@ -14,65 +14,54 @@ namespace GameCloud.Editor
 
         private static void HandleLog(string logString, string stackTrace, LogType type)
         {
+            if (!logString.Contains("[GameCloud]")) return;
             
-            var settings = GameCloudSettings.Load();
-            if (!settings.EnableDebugLogs) return;
-
-            if (logString.StartsWith("<click>") && logString.EndsWith("</click>"))
-            {
-                var cleanLog = Regex.Replace(logString, "<click>|</click>", "");
-                var isRequest = cleanLog.Contains("[GameCloud] ") && cleanLog.Contains("Request");
-                
-                if (settings.ShowDetailedLogs)
-                {
-                    var headers = ExtractHeaders(cleanLog);
-                    var body = ExtractBody(cleanLog);
-                    var message = ExtractFirstLine(cleanLog);
-                    
-                    GameCloudLogWindow.AddLog(message, headers, body, isRequest, type);
-                }
-            }
-        }
-
-        private static string ExtractFirstLine(string log)
-        {
-            var index = log.IndexOf('\n');
-            return index > 0 ? log.Substring(0, index) : log;
-        }
-
-        private static string ExtractHeaders(string log)
-        {
-            var startIndex = log.IndexOf("Headers:");
-            if (startIndex == -1) return string.Empty;
-
-            var endIndex = log.IndexOf("Body:", startIndex);
-            if (endIndex == -1) endIndex = log.Length;
-
-            var headers = log.Substring(startIndex, endIndex - startIndex).Trim();
-            return headers;
-        }
-
-        private static string ExtractBody(string log)
-        {
-            var index = log.IndexOf("Body:");
-            if (index == -1) return string.Empty;
-
-            return log.Substring(index).Trim();
-        }
-
-        private static string FormatLogWithHeaders(string log, string headers)
-        {
-            if (string.IsNullOrEmpty(headers))
-                return log;
-
-            var parts = log.Split(new[] { "\nBody:" }, System.StringSplitOptions.RemoveEmptyEntries);
+            var window = EditorWindow.GetWindow<GameCloudLogWindow>();
+            if (window == null) return;
+        
+            var isRequest = logString.Contains("Request");
+            var method = ExtractMethod(logString);
+            var endpoint = ExtractEndpoint(logString);
+            var headers = ExtractHeaders(logString);
+            var body = ExtractBody(logString);
             
-            if (parts.Length > 1)
-            {
-                return $"{parts[0]}\n{headers}Body:{parts[1]}";
-            }
+            window.AddLogFromConsole(logString, isRequest, endpoint, method, headers, body, type);
+        }
+
+        private static string ExtractHeaders(string logString)
+        {
+            var start = logString.IndexOf("Headers:");
+            if (start == -1) return string.Empty;
+
+            var end = logString.IndexOf("Body:", start);
+            if (end == -1) end = logString.Length;
+
+            return logString.Substring(start, end - start).Trim();
+        }
+
+        private static string ExtractBody(string logString)
+        {
+            var start = logString.IndexOf("Body:");
+            if (start == -1) return string.Empty;
+
+            return logString.Substring(start).Trim();
+        }
+
+        private static string ExtractMethod(string logString)
+        {
+            var parts = logString.Split(']');
+            if (parts.Length < 2) return "";
             
-            return $"{log}\n{headers}";
+            var methodParts = parts[1].Trim().Split(' ');
+            return methodParts.Length > 0 ? methodParts[0] : "";
+        }
+
+        private static string ExtractEndpoint(string logString)
+        {
+            var apiIndex = logString.IndexOf("/api/v1");
+            if (apiIndex == -1) return "";
+            
+            return logString.Substring(apiIndex + 7).Split('\n')[0].Trim();
         }
     }
 }

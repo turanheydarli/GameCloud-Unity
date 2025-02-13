@@ -16,7 +16,7 @@ namespace GameCloud.Editor
         private GUIStyle sectionStyle;
         private Texture2D headerIcon;
 
-        [MenuItem("Window/Game Cloud/Settings", false, 100)]
+        [MenuItem("Window/Game Cloud/Settings1", false, 100)]
         public static void ShowWindow()
         {
             var window = GetWindow<GameCloudSettingsEditor>("Game Cloud");
