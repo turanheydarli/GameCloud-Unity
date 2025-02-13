@@ -14,18 +14,18 @@ namespace GameCloud.Editor
 
         private static void HandleLog(string logString, string stackTrace, LogType type)
         {
-            if (!logString.Contains("[GameCloud]")) return;
+            if (!logString.Contains("[GameCloud]") || logString.Contains("[Event]")) return;
             
             var window = EditorWindow.GetWindow<GameCloudLogWindow>();
             if (window == null) return;
-        
+
             var isRequest = logString.Contains("Request");
             var method = ExtractMethod(logString);
             var endpoint = ExtractEndpoint(logString);
             var headers = ExtractHeaders(logString);
             var body = ExtractBody(logString);
             
-            window.AddLogFromConsole(logString, isRequest, endpoint, method, headers, body, type);
+            // window.AddLogFromConsole(logString, isRequest, endpoint, method, headers, body, type);
         }
 
         private static string ExtractHeaders(string logString)

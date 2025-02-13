@@ -177,11 +177,11 @@ namespace GameCloud.Editor
 
         // Remove AddLog and AddLogFromConsole methods
 
-        public void AddLogFromConsole(string message, bool isRequest, string endpoint, string method,
-            string headers, string body, LogType type)
-        {
-            AddLogEntry(message, headers, body, isRequest, endpoint, method, type);
-        }
+        // public void AddLogFromConsole(string message, bool isRequest, string endpoint, string method,
+        //     string headers, string body, LogType type)
+        // {
+        //     AddLogEntry(message, headers, body, isRequest, endpoint, method, type);
+        // }
 
         // Remove ExtractHeaders and RemoveHeaders methods as they're no longer needed
 
