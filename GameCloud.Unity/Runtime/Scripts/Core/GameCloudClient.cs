@@ -421,6 +421,18 @@ namespace GameCloud
             apiClient.ProcessMatchmaking(queueId, onSuccess, error => onError?.Invoke(error));
         }
 
+        public void EndMatch(string matchId, Dictionary<string, object> finalState, Action<Match> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.EndMatch(matchId, finalState, onSuccess, error => onError?.Invoke(error));
+        }
+
+        public void LeaveMatch(string matchId, Action<Match> onSuccess, Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.LeaveMatch(matchId, onSuccess, error => onError?.Invoke(error));
+        }
 #if UNITASK_SUPPORT
         public async UniTask<MatchmakingTicket> GetMatchmakingTicketAsync(string ticketId)
         {
@@ -433,6 +445,18 @@ namespace GameCloud
             RequireSession();
             var endpoint = queueId != null ? $"/matchmaking/process?queueId={queueId}" : "/matchmaking/process";
             return await apiClient.PostAsync<List<Match>>(endpoint, null);
+        }
+
+        public async UniTask<Match> EndMatchAsync(string matchId, Dictionary<string, object> finalState)
+        {
+            RequireSession();
+            return await apiClient.PostAsync<Match>($"/matchmaking/matches/{matchId}/end", new { finalState });
+        }
+
+        public async UniTask<Match> LeaveMatchAsync(string matchId)
+        {
+            RequireSession();
+            return await apiClient.PostAsync<Match>($"/matchmaking/matches/{matchId}/leave", null);
         }
 #endif
     }

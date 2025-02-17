@@ -68,6 +68,9 @@ namespace GameCloud
             Action<ProblemDetails> onError);
 
         void ProcessMatchmaking(string queueId, Action<List<Match>> onSuccess, Action<ProblemDetails> onError);
+    void EndMatch(string matchId, Dictionary<string, object> finalState, Action<Match> onSuccess, Action<ProblemDetails> onError);
+    void LeaveMatch(string matchId, Action<Match> onSuccess, Action<ProblemDetails> onError);
+
 #if UNITASK_SUPPORT
         UniTask<IGameCloudSession> AuthenticateCustomAsync(string username);
         UniTask<AttributeCollection> GetAttributesAsync(string username, string collection);
@@ -102,6 +105,8 @@ namespace GameCloud
         UniTask<PlayerResponse> GetPlayerByDeviceIdAsync(string deviceId);
         UniTask<PlayerResponse> UpdatePlayerMetadataAsync(string playerId, Dictionary<string, object> metadata);
         UniTask<PlayerResponse> UpdatePlayerStatusAsync(string playerId, PlayerStatus status);
+          UniTask<Match> EndMatchAsync(string matchId, Dictionary<string, object> finalState);
+    UniTask<Match> LeaveMatchAsync(string matchId);
 #endif
     }
 }

@@ -31,12 +31,12 @@ namespace GameCloud.Models
         public string gameId;
         public string queueName;
         public string state;
-        public string[] playerIds;
+        public List<string> playerIds;
         public string currentPlayerId;
-        public Dictionary<string, object> playerStates;
         public Dictionary<string, object> matchState;
-        public Dictionary<string, object> turnHistory;
+        // public Dictionary<string, object> turnHistory;
         public string createdAt;
+        public bool isStoredPlayer;
         public string startedAt;
         public string lastActionAt;
         public string nextActionDeadline;

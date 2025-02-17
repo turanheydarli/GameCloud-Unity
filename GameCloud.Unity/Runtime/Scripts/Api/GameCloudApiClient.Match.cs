@@ -58,5 +58,16 @@ namespace GameCloud.Api
         {
             return Get<MatchmakingTicket>($"/matchmaking/tickets/{ticketId}", onSuccess, onError);
         }
+
+        public IEnumerator EndMatch(string matchId, Dictionary<string, object> finalState, Action<Match> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            return Post($"/matchmaking/matches/{matchId}/end", new { finalState }, onSuccess, onError);
+        }
+
+        public IEnumerator LeaveMatch(string matchId, Action<Match> onSuccess, Action<ProblemDetails> onError)
+        {
+            return Post($"/matchmaking/matches/{matchId}/leave", null, onSuccess, onError);
+        }
     }
 }
