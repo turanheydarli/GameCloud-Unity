@@ -3,6 +3,7 @@ using Cysharp.Threading.Tasks;
 #endif
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using GameCloud.Api;
 using GameCloud.Core.Exceptions;
@@ -65,7 +66,7 @@ namespace GameCloud
                 var session = new GameCloudSession(response);
                 SetSession(session);
                 onSuccess?.Invoke(session);
-            }, error => onError?.Invoke(error));
+            }, error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void AuthenticateWithDevice(string deviceId, Dictionary<string, object> metadata = null,
@@ -76,7 +77,7 @@ namespace GameCloud
                 var session = new GameCloudSession(response);
                 SetSession(session);
                 onSuccess?.Invoke(session);
-            }, error => onError?.Invoke(error));
+            }, error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void AuthenticateWithCustomId(string customId, Dictionary<string, object> metadata = null,
@@ -88,7 +89,7 @@ namespace GameCloud
                 var session = new GameCloudSession(response);
                 SetSession(session);
                 onSuccess?.Invoke(session);
-            }, error => onError?.Invoke(error));
+            }, error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void RefreshSession(string sessionId, Action<IGameCloudSession> onSuccess = null,
@@ -99,7 +100,7 @@ namespace GameCloud
                 var session = new GameCloudSession(response);
                 SetSession(session);
                 onSuccess?.Invoke(session);
-            }, error => onError?.Invoke(error));
+            }, error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void CreateMatchmakingTicket(string queueName, Dictionary<string, object> properties,
@@ -112,14 +113,14 @@ namespace GameCloud
                 properties = properties
             };
             apiClient.CreateMatchmakingTicket(request, onSuccess,
-                error => onError?.Invoke(error));
+                error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void GetMatch(string matchId, Action<Match> onSuccess, Action<ProblemDetails> onError)
         {
             RequireSession();
             apiClient.GetMatch(matchId, onSuccess,
-                error => onError?.Invoke(error));
+                error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void SubmitMatchAction(string matchId, string actionType, Dictionary<string, object> actionData,
@@ -132,7 +133,7 @@ namespace GameCloud
                 actionData = actionData
             };
             apiClient.SubmitMatchAction(matchId, request, onSuccess,
-                error => onError?.Invoke(error));
+                error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void SetMatchPresence(string matchId, string status, Dictionary<string, object> meta = null,
@@ -140,14 +141,14 @@ namespace GameCloud
         {
             RequireSession();
             apiClient.SetMatchPresence(matchId, status, Guid.NewGuid().ToString(), meta, onSuccess,
-                error => onError?.Invoke(error));
+                error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void GetMatchState(string matchId, Action<MatchState> onSuccess, Action<ProblemDetails> onError)
         {
             RequireSession();
             apiClient.GetMatchState(matchId, onSuccess,
-                error => onError?.Invoke(error));
+                error => onError?.Invoke(error)).ToCoroutine();
         }
 
         private void RequireSession()
@@ -174,7 +175,7 @@ namespace GameCloud
                 var session = new GameCloudSession(response);
                 SetSession(session);
                 onSuccess?.Invoke(session);
-            }, error => onError?.Invoke(error));
+            }, error => onError?.Invoke(error)).ToCoroutine();
         }
 
         // Attributes
@@ -183,7 +184,7 @@ namespace GameCloud
         {
             RequireSession();
             apiClient.GetAttributes(username, collection, onSuccess,
-                error => onError?.Invoke(error));
+                error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void GetAttribute(string username, string collection, string key,
@@ -191,7 +192,7 @@ namespace GameCloud
         {
             RequireSession();
             apiClient.GetAttribute(username, collection, key, onSuccess,
-                error => onError?.Invoke(error));
+                error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void SetAttribute(string username, string collection, AttributeWriteRequest request,
@@ -199,7 +200,7 @@ namespace GameCloud
         {
             RequireSession();
             apiClient.SetAttribute(username, collection, request, _ => onSuccess?.Invoke(),
-                error => onError?.Invoke(error));
+                error => onError?.Invoke(error)).ToCoroutine();
         }
 
         public void DeleteAttribute(string username, string collection, string key, Action onSuccess,
@@ -207,7 +208,68 @@ namespace GameCloud
         {
             RequireSession();
             apiClient.DeleteAttribute(username, collection, key, () => onSuccess?.Invoke(),
-                error => onError?.Invoke(error));
+                error => onError?.Invoke(error)).ToCoroutine();
+        }
+
+        public void GetPlayer(string playerId, Action<PlayerResponse> onSuccess, Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.GetPlayer(playerId, onSuccess, error => onError?.Invoke(error));
+        }
+
+        public void GetPlayerByUsername(string username, Action<PlayerResponse> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.GetPlayerByUsername(username, onSuccess, error => onError?.Invoke(error)).ToCoroutine();
+        }
+
+        public void GetPlayerByCustomId(string customId, Action<PlayerResponse> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.GetPlayerByCustomId(customId, onSuccess, error => onError?.Invoke(error)).ToCoroutine();
+        }
+
+        public void GetPlayerByDeviceId(string deviceId, Action<PlayerResponse> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.GetPlayerByDeviceId(deviceId, onSuccess, error => onError?.Invoke(error)).ToCoroutine();
+        }
+
+        public void UpdatePlayerMetadata(string playerId, Dictionary<string, object> metadata,
+            Action<PlayerResponse> onSuccess, Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.UpdatePlayerMetadata(playerId, metadata, onSuccess, error => onError?.Invoke(error))
+                .ToCoroutine();
+        }
+
+        public void UpdatePlayerStatus(string playerId, PlayerStatus status, Action<PlayerResponse> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.UpdatePlayerStatus(playerId, status, onSuccess, error => onError?.Invoke(error)).ToCoroutine();
+        }
+
+        public void ProcessMatchmaking(string queueId, Action<List<Match>> onSuccess, Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.ProcessMatchmaking(queueId, onSuccess, error => onError?.Invoke(error)).ToCoroutine();
+        }
+
+        public void EndMatch(string matchId, Dictionary<string, object> finalState, Action<Match> onSuccess,
+            Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.EndMatch(matchId, finalState, onSuccess, error => onError?.Invoke(error)).ToCoroutine();
+        }
+
+        public void LeaveMatch(string matchId, Action<Match> onSuccess, Action<ProblemDetails> onError)
+        {
+            RequireSession();
+            apiClient.LeaveMatch(matchId, onSuccess, error => onError?.Invoke(error)).ToCoroutine();
         }
 
 #if UNITASK_SUPPORT
@@ -333,50 +395,7 @@ namespace GameCloud
             RequireSession();
             return await apiClient.GetAsync<MatchState>($"/matchmaking/matches/{matchId}/state");
         }
-#endif
 
-        public void GetPlayer(string playerId, Action<PlayerResponse> onSuccess, Action<ProblemDetails> onError)
-        {
-            RequireSession();
-            apiClient.GetPlayer(playerId, onSuccess, error => onError?.Invoke(error));
-        }
-
-        public void GetPlayerByUsername(string username, Action<PlayerResponse> onSuccess,
-            Action<ProblemDetails> onError)
-        {
-            RequireSession();
-            apiClient.GetPlayerByUsername(username, onSuccess, error => onError?.Invoke(error));
-        }
-
-        public void GetPlayerByCustomId(string customId, Action<PlayerResponse> onSuccess,
-            Action<ProblemDetails> onError)
-        {
-            RequireSession();
-            apiClient.GetPlayerByCustomId(customId, onSuccess, error => onError?.Invoke(error));
-        }
-
-        public void GetPlayerByDeviceId(string deviceId, Action<PlayerResponse> onSuccess,
-            Action<ProblemDetails> onError)
-        {
-            RequireSession();
-            apiClient.GetPlayerByDeviceId(deviceId, onSuccess, error => onError?.Invoke(error));
-        }
-
-        public void UpdatePlayerMetadata(string playerId, Dictionary<string, object> metadata,
-            Action<PlayerResponse> onSuccess, Action<ProblemDetails> onError)
-        {
-            RequireSession();
-            apiClient.UpdatePlayerMetadata(playerId, metadata, onSuccess, error => onError?.Invoke(error));
-        }
-
-        public void UpdatePlayerStatus(string playerId, PlayerStatus status, Action<PlayerResponse> onSuccess,
-            Action<ProblemDetails> onError)
-        {
-            RequireSession();
-            apiClient.UpdatePlayerStatus(playerId, status, onSuccess, error => onError?.Invoke(error));
-        }
-
-#if UNITASK_SUPPORT
         public async UniTask<PlayerResponse> GetPlayerAsync(string playerId)
         {
             RequireSession();
@@ -414,26 +433,7 @@ namespace GameCloud
             return await apiClient.PutAsync<PlayerResponse>($"/players/{playerId}/status",
                 new { status = status.ToString().ToLower() });
         }
-#endif
-        public void ProcessMatchmaking(string queueId, Action<List<Match>> onSuccess, Action<ProblemDetails> onError)
-        {
-            RequireSession();
-            apiClient.ProcessMatchmaking(queueId, onSuccess, error => onError?.Invoke(error));
-        }
 
-        public void EndMatch(string matchId, Dictionary<string, object> finalState, Action<Match> onSuccess,
-            Action<ProblemDetails> onError)
-        {
-            RequireSession();
-            apiClient.EndMatch(matchId, finalState, onSuccess, error => onError?.Invoke(error));
-        }
-
-        public void LeaveMatch(string matchId, Action<Match> onSuccess, Action<ProblemDetails> onError)
-        {
-            RequireSession();
-            apiClient.LeaveMatch(matchId, onSuccess, error => onError?.Invoke(error));
-        }
-#if UNITASK_SUPPORT
         public async UniTask<MatchmakingTicket> GetMatchmakingTicketAsync(string ticketId)
         {
             RequireSession();
@@ -459,5 +459,10 @@ namespace GameCloud
             return await apiClient.PostAsync<Match>($"/matchmaking/matches/{matchId}/leave", null);
         }
 #endif
+
+        private void RunCoroutine(IEnumerator coroutine)
+        {
+            GameCloudCoroutineRunner.Instance.StartCoroutine(coroutine);
+        }
     }
 }

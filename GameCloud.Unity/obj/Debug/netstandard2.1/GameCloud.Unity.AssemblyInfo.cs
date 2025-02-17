@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GameCloud.Unity")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1f585017d33afd75a9b176e601c79387d094eb24")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a4d3857840a4e37ddff287942790c530c1ea24a7")]
 [assembly: System.Reflection.AssemblyProductAttribute("GameCloud.Unity")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GameCloud.Unity")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
