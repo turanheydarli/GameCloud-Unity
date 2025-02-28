@@ -139,31 +139,6 @@ public class GameLifetimeScope : LifetimeScope
     }
 }
 ```
-
-### 5. Platform-Specific Configuration
-
-GameCloud-Unity automatically adapts to different platforms:
-
-```csharp
-// Example of platform-specific registration
-public class ServiceLifetimeScope : LifetimeScope
-{
-    protected override void Configure(IContainerBuilder builder)
-    {
-        var settings = GameCloudSettings.Load();
-        builder.Register<IGameCloudClient>(r => GameCloudClient.FromSettings(settings), Lifetime.Singleton);
-
-#if UNITY_WEBGL
-        // Use WebGL-specific network implementation
-        builder.Register<INetworkManager, NetworkManager>(Lifetime.Singleton);
-#else
-        // Use default or mock implementation for other platforms
-        builder.Register<INetworkManager, MockNetworkManager>(Lifetime.Singleton);
-#endif
-    }
-}
-```
-
 ## 📚 Documentation
 
 ### Naming Conventions
