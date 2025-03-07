@@ -1,180 +1,287 @@
 using System;
-using UnityEngine;
-using UnityEngine.Networking;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using GameCloud.Models;
-using Newtonsoft.Json;
+using System.Threading.Tasks;
+using GameCloud.Proto;
+using UnityEngine;
+using Google.Protobuf;
+using NativeWebSocket;
 
 namespace GameCloud.Api
 {
     public partial class GameCloudApiClient
     {
-        private readonly string baseUrl;
-        private readonly string gameKey;
-        private string authToken;
-        private readonly bool useLogger;
-        private readonly ILogger logger;
-
-        public GameCloudApiClient(string host, int port, string gameKey, bool ssl, bool useLogger = false,
-            ILogger logger = null)
+        private WebSocket _socket;
+        
+        private string _baseUrl;
+        private bool _connected;
+        private Dictionary<string, Action<Envelope>> _callbacks = new Dictionary<string, Action<Envelope>>();
+        private Coroutine _heartbeatCoroutine;
+        
+        public event Action OnConnected;
+        public event Action<WebSocketCloseCode> OnDisconnected;
+        
+        public event Action<Error> OnError;
+        
+        public event Action<RoomPresence> OnRoomPresence;
+        public event Action<RoomData> OnRoomData;
+        public event Action<GameState> OnGameState;
+        public event Action<GameAction> OnGameAction;
+        public event Action<TurnChange> OnTurnChange;
+        public event Action<GameEnd> OnGameEnd;
+        
+        public event Action<MatchmakerMatched> OnMatchmakerMatched;
+        
+        public event Action<StatusPresence> OnStatusPresence;
+        
+        public GameCloudApiClient(string host, int port, bool useSSL)
         {
-            this.baseUrl = $"{(ssl ? "https" : "http")}://{host}:{port}";
-            this.gameKey = gameKey;
-            this.useLogger = useLogger;
-            this.logger = logger;
+            string protocol = useSSL ? "wss" : "ws";
+            _baseUrl = $"{protocol}://{host}:{port}/ws";
+            
+            GameCloudCoroutineRunner.Instance.RegisterClient(this);
         }
-
-        public void SetAuthToken(string token)
+        
+        public bool IsConnected => _connected && _socket != null && _socket.State == WebSocketState.Open;
+        
+        public async void Connect(string gameKey, Action onSuccess = null, Action<Error> onError = null)
         {
-            this.authToken = token;
-        }
-
-        protected internal IEnumerator Get<T>(string endpoint, Action<T> onSuccess, Action<ProblemDetails> onError)
-        {
-            var headers = GetHeaders();
-
-            LogRequest("GET", endpoint, headers: headers);
-
-            using UnityWebRequest www = UnityWebRequest.Get($"{baseUrl}/api/v1{endpoint}");
-            www.SetRequestHeaders(headers);
-
-            yield return www.SendWebRequest();
-
-            LogResponse("GET", endpoint, www.downloadHandler.text, www.GetResponseHeaders(),
-                www.result != UnityWebRequest.Result.Success);
-            HandleResponse(www, onSuccess, onError);
-        }
-
-        protected internal IEnumerator Post<T>(string endpoint, object data, Action<T> onSuccess,
-            Action<ProblemDetails> onError)
-        {
-            var headers = GetHeaders();
-
-            LogRequest("POST", endpoint, data, headers);
-
-            using UnityWebRequest www = new UnityWebRequest($"{baseUrl}/api/v1{endpoint}", "POST");
-            www.downloadHandler = new DownloadHandlerBuffer();
-
-            if (data != null)
+            if (IsConnected)
             {
-                string jsonData = JsonConvert.SerializeObject(data);
-                byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
-                www.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            }
-
-            www.SetRequestHeaders(headers);
-            yield return www.SendWebRequest();
-
-            LogResponse("POST", endpoint, www.downloadHandler.text, www.GetResponseHeaders(),
-                www.result != UnityWebRequest.Result.Success);
-            HandleResponse(www, onSuccess, onError);
-        }
-
-        protected internal IEnumerator Put<T>(string endpoint, object data, Action<T> onSuccess,
-            Action<ProblemDetails> onError)
-        {
-            using (UnityWebRequest www = new UnityWebRequest($"{baseUrl}/api/v1{endpoint}", "PUT"))
-            {
-                var headers = GetHeaders();
-
-                LogRequest("PUT", endpoint, data, headers);
-
-                if (data != null)
-                {
-                    string jsonData = JsonConvert.SerializeObject(data);
-                    byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
-                    www.uploadHandler = new UploadHandlerRaw(bodyRaw);
-                    www.downloadHandler = new DownloadHandlerBuffer();
-                }
-
-                www.SetRequestHeaders(headers);
-
-                yield return www.SendWebRequest();
-
-                HandleResponse(www, onSuccess, onError);
-            }
-        }
-
-        private void HandleResponse<T>(UnityWebRequest www, Action<T> onSuccess, Action<ProblemDetails> onError)
-        {
-            if (www.result != UnityWebRequest.Result.Success)
-            {
-                try
-                {
-                    var problemDetails = JsonConvert.DeserializeObject<ProblemDetails>(www.downloadHandler.text);
-                    onError?.Invoke(problemDetails);
-                }
-                catch
-                {
-                    onError?.Invoke(ProblemDetails.FromError(www.error));
-                }
-
+                onSuccess?.Invoke();
                 return;
             }
-
+            
             try
             {
-                if (typeof(T) == typeof(string))
+                Dictionary<string, string> headers = new Dictionary<string, string>
                 {
-                    onSuccess?.Invoke((T)(object)www.downloadHandler.text);
-                }
-                else
+                    { "X-Game-Key", gameKey }
+                };
+                
+                _socket = new WebSocket(_baseUrl, headers);
+                
+                // Set up event handlers
+                _socket.OnOpen += () => 
                 {
-                    T response = JsonConvert.DeserializeObject<T>(www.downloadHandler.text);
-                    onSuccess?.Invoke(response);
-                }
+                    _connected = true;
+                    OnConnected?.Invoke();
+                    onSuccess?.Invoke();
+                    StartHeartbeat();
+                };
+                
+                _socket.OnClose += (closeCode) => 
+                {
+                    _connected = false;
+                    StopHeartbeat();
+                    OnDisconnected?.Invoke(closeCode);
+                };
+                
+                _socket.OnError += (errorMsg) => 
+                {
+                    Debug.LogError($"WebSocket error: {errorMsg}");
+                    var error = new Error { Code = "ConnectionError", Message = errorMsg };
+                    OnError?.Invoke(error);
+                    onError?.Invoke(error);
+                };
+                
+                _socket.OnMessage += (bytes) => 
+                {
+                    try
+                    {
+                        var envelope = Envelope.Parser.ParseFrom(bytes);
+                        
+                        // Check if this is a response to a pending request
+                        if (!string.IsNullOrEmpty(envelope.Id) && _callbacks.TryGetValue(envelope.Id, out var callback))
+                        {
+                            callback?.Invoke(envelope);
+                            _callbacks.Remove(envelope.Id);
+                            return;
+                        }
+                        
+                        // Process incoming message based on type
+                        ProcessMessage(envelope);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"Error processing message: {ex.Message}");
+                    }
+                };
+                
+                // Connect to the server
+                await _socket.Connect();
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                onError?.Invoke(ProblemDetails.FromError($"Failed to parse response: {e.Message}"));
+                Debug.LogError($"Failed to connect: {ex.Message}");
+                var error = new Error { Code = "ConnectionError", Message = ex.Message };
+                onError?.Invoke(error);
             }
         }
-
-        protected internal IEnumerator Delete(string endpoint, Action onSuccess, Action<ProblemDetails> onError)
+        
+        public async void Disconnect()
         {
-            var headers = GetHeaders();
-
-            LogRequest("DELETE", endpoint, headers: headers);
-
-            using UnityWebRequest www = UnityWebRequest.Delete($"{baseUrl}/api/v1{endpoint}");
-            www.downloadHandler = new DownloadHandlerBuffer();
-            www.SetRequestHeaders(headers);
-            yield return www.SendWebRequest();
-
-            if (www.result != UnityWebRequest.Result.Success)
+            if (_socket != null)
             {
                 try
                 {
-                    var problemDetails = JsonUtility.FromJson<ProblemDetails>(www.downloadHandler.text);
-                    onError?.Invoke(problemDetails);
+                    StopHeartbeat();
+                    await _socket.Close();
                 }
-                catch
+                catch (Exception ex)
                 {
-                    onError?.Invoke(ProblemDetails.FromError(www.error));
+                    Debug.LogError($"Error during disconnect: {ex.Message}");
                 }
-
-                yield break;
+                finally
+                {
+                    _socket = null;
+                    _connected = false;
+                }
             }
-
-            onSuccess?.Invoke();
         }
-
-        private Dictionary<string, string> GetHeaders()
+        
+        private void ProcessMessage(Envelope envelope)
         {
-            var headers = new Dictionary<string, string>()
+            switch (envelope.MessageCase)
             {
-                { "Content-Type", "application/json" },
-                { "X-Game-Key", gameKey },
-            };
-
-            if (!string.IsNullOrEmpty(authToken))
-            {
-                headers.Add("Authorization", $"Bearer {authToken}");
+                case Envelope.MessageOneofCase.Error:
+                    OnError?.Invoke(envelope.Error);
+                    break;
+                    
+                case Envelope.MessageOneofCase.RoomPresence:
+                    OnRoomPresence?.Invoke(envelope.RoomPresence);
+                    break;
+                    
+                case Envelope.MessageOneofCase.RoomData:
+                    OnRoomData?.Invoke(envelope.RoomData);
+                    break;
+                    
+                case Envelope.MessageOneofCase.GameState:
+                    OnGameState?.Invoke(envelope.GameState);
+                    break;
+                    
+                case Envelope.MessageOneofCase.GameAction:
+                    OnGameAction?.Invoke(envelope.GameAction);
+                    break;
+                    
+                case Envelope.MessageOneofCase.TurnChange:
+                    OnTurnChange?.Invoke(envelope.TurnChange);
+                    break;
+                    
+                case Envelope.MessageOneofCase.GameEnd:
+                    OnGameEnd?.Invoke(envelope.GameEnd);
+                    break;
+                    
+                case Envelope.MessageOneofCase.MatchmakerMatched:
+                    OnMatchmakerMatched?.Invoke(envelope.MatchmakerMatched);
+                    break;
+                    
+                case Envelope.MessageOneofCase.StatusPresence:
+                    OnStatusPresence?.Invoke(envelope.StatusPresence);
+                    break;
             }
-
-            return headers;
+        }
+        
+        protected async void Send<T>(T message, Action<Envelope> callback = null) where T : IMessage
+        {
+            if (!IsConnected)
+            {
+                var error = new Error { Code = "NotConnected", Message = "WebSocket is not connected" };
+                OnError?.Invoke(error);
+                return;
+            }
+            
+            try
+            {
+                var id = Guid.NewGuid().ToString();
+                var envelope = new Envelope { Id = id };
+                
+                if (message is SessionConnect connectMsg)
+                    envelope.Connect = connectMsg;
+                else if (message is SessionDisconnect disconnectMsg)
+                    envelope.Disconnect = disconnectMsg;
+                else if (message is SessionHeartbeat heartbeatMsg)
+                    envelope.Heartbeat = heartbeatMsg;
+                else if (message is RoomCreate roomCreateMsg)
+                    envelope.RoomCreate = roomCreateMsg;
+                else if (message is RoomJoin roomJoinMsg)
+                    envelope.RoomJoin = roomJoinMsg;
+                else if (message is RoomLeave roomLeaveMsg)
+                    envelope.RoomLeave = roomLeaveMsg;
+                else if (message is RoomData roomDataMsg)
+                    envelope.RoomData = roomDataMsg;
+                else if (message is MatchmakerAdd matchmakerAddMsg)
+                    envelope.MatchmakerAdd = matchmakerAddMsg;
+                else if (message is MatchmakerRemove matchmakerRemoveMsg)
+                    envelope.MatchmakerRemove = matchmakerRemoveMsg;
+                else if (message is StatusUpdate statusUpdateMsg)
+                    envelope.StatusUpdate = statusUpdateMsg;
+                else if (message is GameAction gameActionMsg)
+                    envelope.GameAction = gameActionMsg;
+                else
+                    throw new ArgumentException($"Unsupported message type: {message.GetType().Name}");
+                
+                if (callback != null)
+                {
+                    _callbacks[id] = callback;
+                }
+                
+                byte[] data = envelope.ToByteArray();
+                await _socket.Send(data);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Error sending message: {ex.Message}");
+                var error = new Error { Code = "SendError", Message = ex.Message };
+                OnError?.Invoke(error);
+            }
+        }
+        
+        private void StartHeartbeat()
+        {
+            StopHeartbeat();
+            _heartbeatCoroutine = GameCloudCoroutineRunner.Instance.StartCoroutine(HeartbeatCoroutine());
+        }
+        
+        private void StopHeartbeat()
+        {
+            if (_heartbeatCoroutine != null)
+            {
+                GameCloudCoroutineRunner.Instance.StopCoroutine(_heartbeatCoroutine);
+                _heartbeatCoroutine = null;
+            }
+        }
+        
+        private IEnumerator HeartbeatCoroutine()
+        {
+            while (IsConnected)
+            {
+                yield return new WaitForSeconds(15f);
+                
+                try
+                {
+                    var heartbeat = new SessionHeartbeat
+                    {
+                        Timestamp = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.UtcNow)
+                    };
+                    
+                    Send(heartbeat);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"Failed to send heartbeat: {ex.Message}");
+                }
+            }
+        }
+        
+        public void Update()
+        {
+            if (_socket != null)
+            {
+                #if !UNITY_WEBGL || UNITY_EDITOR
+                _socket.DispatchMessageQueue();
+                #endif
+            }
         }
     }
 }

@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "com.github.endel.nativewebsocket": "https://github.com/endel/NativeWebSocket.git#upm"
+  }
+}

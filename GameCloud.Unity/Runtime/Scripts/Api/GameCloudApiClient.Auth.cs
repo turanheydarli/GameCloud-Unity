@@ -1,49 +1,30 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using GameCloud.Models;
+using GameCloud.Proto;
 
 namespace GameCloud.Api
 {
     public partial class GameCloudApiClient
     {
-        public IEnumerator AuthenticateDevice(string deviceId, Dictionary<string, object> metadata, Action<AuthResponse> onSuccess, Action<ProblemDetails> onError)
+        public void Authenticate(string token, string deviceId, Action<SessionConnect> onSuccess = null, Action<Error> onError = null)
         {
-            var request = new DeviceAuthRequest 
-            { 
-                deviceId = deviceId,
-                metadata = metadata
+            var connectRequest = new SessionConnect
+            {
+                Token = token,
+                DeviceId = deviceId
             };
-
-            return Post("/players/authenticate/device", request, (AuthResponse response) => {
-                SetAuthToken(response.token);
-                onSuccess?.Invoke(response);
-            }, onError);
-        }
-
-        public IEnumerator AuthenticateCustom(string customId, Dictionary<string, object> metadata, bool create, Action<AuthResponse> onSuccess, Action<ProblemDetails> onError)
-        {
-            var request = new CustomAuthRequest 
-            { 
-                customId = customId,
-                metadata = metadata,
-                create = create
-            };
-
-            return Post("/players/authenticate/custom", request, (AuthResponse response) => {
-                SetAuthToken(response.token);
-                onSuccess?.Invoke(response);
-            }, onError);
-        }
-
-        public IEnumerator RefreshSession(string sessionId, Action<AuthResponse> onSuccess, Action<ProblemDetails> onError)
-        {
-            var request = new SessionRefreshRequest 
-            { 
-                sessionId = sessionId 
-            };
-
-            return Post("/players/authenticate/refresh", request, onSuccess, onError);
+            
+            Send(connectRequest, response => {
+                if (response.Error != null)
+                {
+                    onError?.Invoke(response.Error);
+                    return;
+                }
+                
+                // Start heartbeat after successful authentication
+                StartHeartbeat();
+                
+                onSuccess?.Invoke(connectRequest);
+            });
         }
     }
 }

@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package gamecloud;
+
+option go_package = "github.com/turanheydarli/gamecloud/relay/proto";
+option csharp_namespace = "GameCloud.Proto";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service MatchmakingService {
+  rpc CreateTicket(CreateTicketRequest) returns (MatchmakingTicket);
+  
+  rpc DeleteTicket(DeleteTicketRequest) returns (google.protobuf.Empty);
+  
+  rpc GetTicket(GetTicketRequest) returns (MatchmakingTicket);
+  
+  rpc AddUsersToMatch(AddUsersToMatchRequest) returns (MatchmakingTicket);
+}
+
+message CreateTicketRequest {
+  string palyer_id = 1;
+  string game_id = 2;
+  string queue_name = 3;
+  MatchmakingCriteria criteria = 4;
+  map<string, string> properties = 5;
+  string session_id = 6;
+}
+
+message MatchmakingCriteria {
+  int32 min_players = 1;
+  int32 max_players = 2;
+  string pool = 3;
+  string skill_level = 4;
+  repeated string required_properties = 5;
+  map<string, string> filters = 6;
+}
+
+message MatchmakingTicket {
+  string ticket_id = 1;
+  string user_id = 2;
+  string game_id = 3;
+  MatchmakingCriteria criteria = 4;
+  map<string, string> properties = 5;
+  MatchStatus status = 6;
+  string room_id = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+enum MatchStatus {
+  MATCH_STATUS_UNSPECIFIED = 0;
+  MATCH_STATUS_QUEUED = 1;
+  MATCH_STATUS_MATCHED = 2;
+  MATCH_STATUS_CANCELLED = 3;
+  MATCH_STATUS_FAILED = 4;
+  MATCH_STATUS_TIMED_OUT = 5;
+}
+
+message DeleteTicketRequest {
+  string ticket_id = 1;
+}
+
+message GetTicketRequest {
+  string ticket_id = 1;
+}
+
+message AddUsersToMatchRequest {
+  repeated string user_ids = 1;
+  string game_id = 2;
+  MatchmakingCriteria criteria = 3;
+}

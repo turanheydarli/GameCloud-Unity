@@ -1,0 +1,214 @@
+syntax = "proto3";
+
+package gamecloud;
+
+option go_package = "github.com/turanheydarli/gamecloud/relay/proto";
+option csharp_namespace = "GameCloud.Proto";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service RelayService {
+  rpc AuthenticateUser(AuthenticateRequest) returns (AuthenticateResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  
+  rpc CreateRoom(CreateRoomRequest) returns (Room);
+  rpc GetRoom(GetRoomRequest) returns (Room);
+  rpc DeleteRoom(DeleteRoomRequest) returns (google.protobuf.Empty);
+  rpc UpdateRoomState(UpdateRoomStateRequest) returns (Room);
+
+  rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
+  rpc LeaveRoom(LeaveRoomRequest) returns (google.protobuf.Empty);
+  rpc KickPlayer(KickPlayerRequest) returns (google.protobuf.Empty);
+  
+  rpc SendGameAction(GameAction) returns (GameActionAck);
+  rpc EndGame(EndGameRequest) returns (google.protobuf.Empty);
+  
+  rpc PersistGameState(PersistGameStateRequest) returns (google.protobuf.Empty);
+}
+
+service GameEventService {
+  rpc OnPlayerJoined(PlayerEvent) returns (EventAck);
+  rpc OnPlayerLeft(PlayerEvent) returns (EventAck);
+  rpc OnRoomClosed(RoomEvent) returns (EventAck);
+  rpc OnGameCompleted(GameCompletedEvent) returns (EventAck);
+  rpc OnGameStateChanged(GameStateEvent) returns (EventAck);
+  rpc OnMatchmakingResult(MatchmakingResultEvent) returns (EventAck);
+}
+
+message AuthenticateRequest {
+  string custom_id = 1;
+  string device_id = 2;
+  optional string username = 3;
+}
+
+message AuthenticateResponse {
+  string session_token = 1;
+  string user_id = 2;
+  bool created = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  map<string, string> claims = 3;
+}
+
+message CreateRoomRequest {
+  string game_id = 1;
+  map<string, string> metadata = 2;
+  int32 max_players = 3;
+  string creator_id = 4;
+  bool private = 5;
+  string label = 6;
+  RoomConfig config = 7;
+}
+
+message RoomConfig {
+  int32 min_players = 1;
+  int32 max_players = 2;
+  int32 turn_timer_seconds = 3;
+  bool allow_spectators = 4;
+  bool persist_state = 5;
+  map<string, string> custom_config = 6;
+}
+
+message Room {
+  string id = 1;
+  string game_id = 2;
+  string creator_id = 3;
+  RoomState state = 4;
+  map<string, string> metadata = 5;
+  repeated string player_ids = 6;
+  repeated string spectator_ids = 7;
+  int32 max_players = 8;
+  google.protobuf.Timestamp created_at = 9;
+  string current_turn_user_id = 10;
+  int32 turn_number = 11;
+  RoomConfig config = 12;
+}
+
+enum RoomState {
+  ROOM_STATE_UNSPECIFIED = 0;
+  ROOM_STATE_CREATED = 1;
+  ROOM_STATE_STARTED = 2;
+  ROOM_STATE_ENDED = 3;
+  ROOM_STATE_CLOSED = 4;
+}
+
+message GetRoomRequest {
+  string room_id = 1;
+}
+
+message DeleteRoomRequest {
+  string room_id = 1;
+}
+
+message UpdateRoomStateRequest {
+  string room_id = 1;
+  RoomState state = 2;
+  optional string current_turn_user_id = 3;
+  optional int32 turn_number = 4;
+  map<string, string> metadata = 5;
+}
+
+message JoinRoomRequest {
+  string room_id = 1;
+  string user_id = 2;
+  string session_id = 3;
+  bool as_spectator = 4;
+}
+
+message JoinRoomResponse {
+  bool success = 1;
+  string error = 2;
+  Room room = 3;
+  int32 player_index = 4;
+}
+
+message LeaveRoomRequest {
+  string room_id = 1;
+  string user_id = 2;
+  string session_id = 3;
+}
+
+message KickPlayerRequest {
+  string room_id = 1;
+  string user_id = 2;
+  string reason = 3;
+}
+
+message GameAction {
+  string room_id = 1;
+  string user_id = 2;
+  string action_type = 3;
+  bytes payload = 4;
+  int32 sequence_number = 5;
+}
+
+message GameActionAck {
+  bool success = 1;
+  string error_message = 2;
+  int32 sequence_number = 3;
+}
+
+message EndGameRequest {
+  string room_id = 1;
+  string winner_id = 2;
+  map<string, int32> scores = 3;
+  map<string, string> result_metadata = 4;
+}
+
+message PersistGameStateRequest {
+  string room_id = 1;
+  bytes state_data = 2;
+  string current_turn_user_id = 3;
+  int32 turn_number = 4;
+  map<string, string> metadata = 5;
+}
+
+message PlayerEvent {
+  string room_id = 1;
+  string user_id = 2;
+  string session_id = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  map<string, string> metadata = 5;
+}
+
+message RoomEvent {
+  string room_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  string reason = 3;
+}
+
+message GameCompletedEvent {
+  string room_id = 1;
+  string winner_id = 2;
+  map<string, int32> scores = 3;
+  map<string, string> result_metadata = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+message GameStateEvent {
+  string room_id = 1;
+  string current_turn_user_id = 2;
+  int32 turn_number = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+message MatchmakingResultEvent {
+  string ticket_id = 1;
+  bool success = 2;
+  string room_id = 3;
+  repeated string user_ids = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+message EventAck {
+  bool received = 1;
+}

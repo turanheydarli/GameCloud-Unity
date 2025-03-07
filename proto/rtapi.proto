@@ -1,0 +1,166 @@
+syntax = "proto3";
+
+package gamecloud;
+
+option go_package = "github.com/turanheydarli/gamecloud/relay/proto";
+option csharp_namespace = "GameCloud.Proto";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "gamecloud.proto";
+
+// Envelope for WebSocket messages between client and relay server
+message Envelope {
+  // Unique ID for this message
+  string id = 1;
+  
+  // Message type and payload
+  oneof message {
+    Error error = 2;
+    
+    // Session messages
+    SessionConnect connect = 3;
+    SessionDisconnect disconnect = 4;
+    SessionHeartbeat heartbeat = 5;
+    
+    // Room messages
+    RoomCreate room_create = 10;
+    RoomJoin room_join = 11;
+    RoomLeave room_leave = 12;
+    RoomData room_data = 13;
+    RoomPresence room_presence = 14;
+    
+    // Matchmaking
+    MatchmakerAdd matchmaker_add = 20;
+    MatchmakerRemove matchmaker_remove = 21;
+    MatchmakerMatched matchmaker_matched = 22;
+    
+    // Status
+    Status status = 30;
+    StatusUpdate status_update = 31;
+    StatusPresence status_presence = 32;
+    
+    // Game-specific messages
+    GameState game_state = 40;
+    GameAction game_action = 41; // This now refers to the message type in gamecloud.proto
+    GameActionAck game_action_ack = 42; // This now refers to the message type in gamecloud.proto
+    TurnChange turn_change = 43;
+    GameEnd game_end = 44;
+  }
+}
+
+message Error {
+  string code = 1;
+  string message = 2;
+  map<string, string> context = 3;
+}
+
+message SessionConnect {
+  string device_id = 1;
+  string token = 2;
+  map<string, string> connection_metadata = 3;
+}
+
+message SessionDisconnect {
+  string reason = 1;
+}
+
+message SessionHeartbeat {
+  google.protobuf.Timestamp timestamp = 1;
+}
+
+// Room messages
+message RoomCreate {
+  string game_id = 1;
+  map<string, string> metadata = 2;
+  int32 max_players = 3;
+}
+
+message RoomJoin {
+  string room_id = 1;
+  bool as_spectator = 2;
+}
+
+message RoomLeave {
+  string room_id = 1;
+}
+
+message RoomData {
+  string room_id = 1;
+  string sender_id = 2;
+  bytes data = 3;
+  bool reliable = 4;
+  google.protobuf.Int32Value sequence = 5;
+}
+
+message RoomPresence {
+  string room_id = 1;
+  repeated UserPresenceInfo joins = 2;
+  repeated UserPresenceInfo leaves = 3;
+}
+
+message UserPresenceInfo {
+  string user_id = 1;
+  string username = 2;
+  map<string, string> metadata = 3;
+  string status = 4;
+}
+
+// Matchmaking messages
+message MatchmakerAdd {
+  string game_id = 1;
+  int32 min_count = 2;
+  int32 max_count = 3;
+  string query = 4;
+  map<string, double> numeric_properties = 5;
+  map<string, string> string_properties = 6;
+}
+
+message MatchmakerRemove {
+  string ticket = 1;
+}
+
+message MatchmakerMatched {
+  string ticket = 1;
+  string room_id = 2;
+  repeated string user_ids = 3;
+  bool self_matched = 4;
+}
+
+// Status messages
+message Status {
+  map<string, string> presence_statuses = 1;
+}
+
+message StatusUpdate {
+  string status = 1;
+  map<string, string> metadata = 2;
+}
+
+message StatusPresence {
+  repeated UserPresenceInfo presences = 1;
+}
+
+// Game-specific messages
+message GameState {
+  string room_id = 1;
+  bytes state_data = 2;
+  string current_turn_user_id = 3;
+  int32 turn_number = 4;
+}
+
+// REMOVED: Duplicate GameActionAck message definition
+
+message TurnChange {
+  string room_id = 1;
+  string next_player_id = 2;
+  int32 turn_number = 3;
+  int32 turn_timeout_seconds = 4;
+}
+
+message GameEnd {
+  string room_id = 1;
+  string winner_id = 2;
+  map<string, int32> scores = 3;
+  map<string, string> result_metadata = 4;
+}

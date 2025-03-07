@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package gamecloud;
+
+option go_package = "github.com/turanheydarli/gamecloud/relay/proto";
+option csharp_namespace = "GameCloud.Proto";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service PresenceService {
+  rpc UpdateStatus(UpdateStatusRequest) returns (google.protobuf.Empty);
+  rpc GetOnlineUsers(GetOnlineUsersRequest) returns (OnlineUsers);
+  rpc SubscribeToUsers(SubscribeRequest) returns (google.protobuf.Empty);
+  rpc UnsubscribeFromUsers(UnsubscribeRequest) returns (google.protobuf.Empty);
+  rpc SendNotification(NotificationRequest) returns (google.protobuf.Empty);
+}
+
+message UpdateStatusRequest {
+  string user_id = 1;
+  string status = 2;
+  map<string, string> metadata = 3;
+  bool persist = 4;
+}
+
+message GetOnlineUsersRequest {
+  repeated string user_ids = 1;
+}
+
+message OnlineUsers {
+  repeated UserPresence users = 1;
+}
+
+message UserPresence {
+  string user_id = 1;
+  string status = 2;
+  map<string, string> metadata = 3;
+  string session_id = 4;
+  google.protobuf.Timestamp last_seen = 5;
+}
+
+message SubscribeRequest {
+  string subscriber_id = 1;
+  repeated string user_ids = 2;
+}
+
+message UnsubscribeRequest {
+  string subscriber_id = 1;
+  repeated string user_ids = 2;
+}
+
+message NotificationRequest {
+  string sender_id = 1;
+  repeated string receiver_ids = 2;
+  string subject = 3;
+  bytes content = 4;
+  map<string, string> metadata = 5;
+  bool persist = 6;
+}
